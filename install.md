@@ -4,21 +4,40 @@ The user has asked you, their AI agent, to install Orbi, connect their agents, a
 
 Explain the app location and agent profiles you will change. This request authorizes the setup described here; follow your host's approval rules and ask only for permission or information you still need. Preserve existing settings and instructions. Do not install unrelated agents or change their approval policy.
 
+This is the agent's installation procedure. Perform the download, installation,
+configuration, and launch yourself; do not hand the user a manual installation
+checklist. Ask the user only for approvals that require their action.
+
 ## Choose the release
 
 Detect the desktop OS and CPU architecture. These are the published targets:
 
-| Desktop | Release tag | Required assets |
+| Desktop | Manifest platform | Required assets |
 |---|---|---|
-| Windows x64 | `windows-latest` | `orbi.exe`, `orbi-mcp.exe` |
-| macOS Apple Silicon | `macos-latest` | `Orbi-macOS-aarch64.dmg` |
-| Linux x86_64 | `linux-latest` | `Orbi-Linux-x86_64.AppImage` |
+| Windows x64 | `windows` | `orbi.exe`, `orbi-mcp.exe` |
+| macOS Apple Silicon | `macos` | `Orbi-macOS-aarch64.dmg` |
+| Linux x86_64 | `linux` | `Orbi-Linux-x86_64.AppImage` |
 
-Read `https://api.github.com/repos/RaflyLesmana3003/orbi-releases/releases/tags/<tag>`. For each required asset, use its `browser_download_url` and `digest` (`sha256:…`). Download into a temporary directory and verify its SHA-256 before replacing or running anything. Stop on a missing asset, digest, download failure, or mismatch. Each OS has its own release; do not guess filenames or use the generic latest release. No prebuilt download is currently published for other architectures.
+Read `https://downloads.orbi.chrystalesia.com/latest.json`. It contains `version`, `tag_name`, and `platforms`. Select `platforms.<platform>.assets` from the table above. For each required asset, use its `browser_download_url` and `digest` (`sha256:…`). URLs point to immutable versioned files on Cloudflare R2. Download into a temporary directory and verify its SHA-256 before replacing or running anything. Stop on a missing platform, asset, digest, download failure, or mismatch. No GitHub account or repository access is needed. No prebuilt download is currently published for other architectures.
 
 Use a native local agent session. A remote container or WSL session cannot use the desktop's bridge through its own local socket.
 
 ## Install and launch
+
+Launch Orbi automatically as part of setup and leave it running when installation
+finishes. Start it before configuring the agents so it can install its bridge,
+then verify it is still running after configuration. If it is already running,
+reuse that process; starting a second copy opens the existing island.
+
+Fresh installations start in minimized mode, as a small tab at the screen edge.
+Click the tab to open the preview. Keep an existing user's saved rest mode during
+updates. When installing an older release, set `rest` to `"minimized"` for a fresh
+installation before launch; preserve any existing preferences. Settings live in
+`%APPDATA%\Orbi\settings.json` on Windows,
+`~/Library/Application Support/Orbi/settings.json` on macOS, or
+`${XDG_CONFIG_HOME:-$HOME/.config}/orbi/settings.json` on Linux (a relative
+`XDG_CONFIG_HOME` uses `~/.config`). Check for preferences from an earlier
+installation before creating a new file.
 
 ### Windows
 
@@ -29,9 +48,9 @@ $ErrorActionPreference = 'Stop'
 $orbiDir = Join-Path $env:LOCALAPPDATA 'Orbi'
 $orbiStage = Join-Path ([IO.Path]::GetTempPath()) ('orbi-install-' + [guid]::NewGuid())
 New-Item -ItemType Directory -Path $orbiStage | Out-Null
-$release = Invoke-RestMethod 'https://api.github.com/repos/RaflyLesmana3003/orbi-releases/releases/tags/windows-latest'
+$release = Invoke-RestMethod 'https://downloads.orbi.chrystalesia.com/latest.json'
 foreach ($file in 'orbi.exe', 'orbi-mcp.exe') {
-    $assets = @($release.assets | Where-Object name -eq $file)
+    $assets = @($release.platforms.windows.assets | Where-Object name -eq $file)
     if ($assets.Count -ne 1 -or $assets[0].digest -notmatch '^sha256:([a-fA-F0-9]{64})$') {
         throw "Missing release asset or SHA-256 digest: $file"
     }
@@ -121,7 +140,7 @@ Existing files receive dated backups beside them. Repeating setup updates Orbi's
 
 If `help` does not list `--instructions`, use the older bridge's `install` command with explicit client names. Detect them from the profile locations above; agy uses `~/.gemini/config`, while Gemini CLI uses `~/.gemini/settings.json`. Review its preview and confirm the writes. Do not pass new flags to an older executable.
 
-Fetch the [Orbi instruction block](https://raw.githubusercontent.com/RaflyLesmana3003/orbi-releases/main/agent-instructions.md). Show the intended diff, back up each applicable global instruction file, then append that block or replace only its existing marked block. Preserve text outside the markers, encoding, and line endings. Stop on duplicate or incomplete markers. Check the older installer's printed paths before confirming: if it ignored `CODEX_HOME`, do not apply it to the wrong profile. Merge only the Orbi entries into the active profile using the [bridge configuration reference](https://github.com/RaflyLesmana3003/orbi-releases/blob/main/bridge.md).
+Fetch the [Orbi instruction block](https://orbi.chrystalesia.com/agent-instructions.md). Show the intended diff, back up each applicable global instruction file, then append that block or replace only its existing marked block. Preserve text outside the markers, encoding, and line endings. Stop on duplicate or incomplete markers. Check the older installer's printed paths before confirming: if it ignored `CODEX_HOME`, do not apply it to the wrong profile. Merge only the Orbi entries into the active profile using the [bridge configuration reference](https://orbi.chrystalesia.com/bridge.md).
 
 ## Verify and finish
 
